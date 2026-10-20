@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
-app = FastAPI(title="EOTC Market Production API")
+app = FastAPI(title="EOTC Market Full Control API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,14 +37,13 @@ def send_telegram_message(chat_id: Optional[int], text: str) -> bool:
         return False
 
 products_db = [
-    {"id": 1, "name": "መጽሐፈ ሰዓታት (ትልቁ)", "price": "650", "category": "መጽሐፍት", "condition": "አዲስ", "location": "አ.አ, ቦሌ", "quantity": "10", "color": "ጥቁር", "badge": "አዲስ", "image": "", "seller_username": "mikael_books"},
-    {"id": 2, "name": "የነሐስ የእጅ መስቀል", "price": "1200", "category": "ንዋየ ቅድሳት", "condition": "አዲስ", "location": "አ.አ, መገናኛ", "quantity": "5", "color": "ወርቃማ", "badge": "ተፈላጊ", "image": "", "seller_username": "mikael_books"},
-    {"id": 3, "name": "ጥልፍ ነጠላ (ደረጃ 1)", "price": "1850", "category": "አልባሳት", "condition": "አዲስ", "location": "አ.አ, ፒያሳ", "quantity": "8", "color": "ነጭ", "badge": "ልዩ", "image": "", "seller_username": "mikael_books"},
+    {"id": 1, "name": "መጽሐፈ ሰዓታት (ትልቁ)", "price": "650", "category": "መጽሐፍት", "condition": "አዲስ", "location": "አ.አ, ቦሌ", "quantity": "10", "color": "ጥቁር", "badge": "አዲስ", "image": "", "seller_username": "mikael_books", "store_name": "ቅዱስ ሚካኤል መጻሕፍት"},
+    {"id": 2, "name": "የነሐስ የእጅ መስቀል", "price": "1200", "category": "ንዋየ ቅድሳት", "condition": "አዲስ", "location": "አ.አ, መገናኛ", "quantity": "5", "color": "ወርቃማ", "badge": "ተፈላጊ", "image": "", "seller_username": "mikael_books", "store_name": "ቅዱስ ሚካኤል መጻሕፍት"},
+    {"id": 3, "name": "ጥልፍ ነጠላ (ደረጃ 1)", "price": "1850", "category": "አልባሳት", "condition": "አዲስ", "location": "አ.አ, ፒያሳ", "quantity": "8", "color": "ነጭ", "badge": "ልዩ", "image": "", "seller_username": "mikael_books", "store_name": "ቅዱስ ሚካኤል መጻሕፍት"},
 ]
 
 vendors_db = []
 orders_db = []
-otp_store = {}
 
 class OtpRequest(BaseModel):
     phone: str
@@ -57,8 +56,7 @@ class VendorIn(BaseModel):
     telegram_id: Optional[int] = None
     phone: str
     account: str
-    id_front_image: str
-    otp_code: Optional[str] = ""
+    id_front_image: Optional[str] = ""
 
 class ProductIn(BaseModel):
     name: str
@@ -70,12 +68,13 @@ class ProductIn(BaseModel):
     color: Optional[str] = ""
     image: Optional[str] = ""
     seller_username: Optional[str] = "owner"
+    store_name: Optional[str] = "EOTC Store"
     seller_telegram_id: Optional[int] = None
 
 class OrderIn(BaseModel):
     buyer: Optional[str] = "buyer"
     buyer_telegram_id: Optional[int] = None
-    seller_username: Optional[str] = ""
+    seller_username: Optional[str] = "owner"
     product_name: str
     amount: str
     payment_method: str
@@ -83,47 +82,49 @@ class OrderIn(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "EOTC Market Live API Running"}
+    return {"status": "EOTC Market Full API Running"}
 
-# 1. የቴሌግራም OTP መላኪያ
 @app.post("/send-otp")
 def send_otp(data: OtpRequest):
     code = str(random.randint(1000, 9999))
-    key = str(data.telegram_id) if data.telegram_id else data.phone
-    otp_store[key] = code
-
     sent = False
     if data.telegram_id:
         msg = (
             f"🔐 <b>የ EOTC Market ማረጋገጫ ኮድ (OTP)</b>\n\n"
-            f"የእርስዎ ባለ 4-አሃዝ ማረጋገጫ ኮድ፦ <code>{code}</code>\n"
-            f"📞 ስልክ፦ {data.phone}\n\n"
-            f"እባክዎ ይህንን ኮድ ወደ ሚኒ አፑ ተመልሰው ያስገቡ።"
+            f"የእርስዎ ባለ 4-አሃዝ ኮድ፦ <code>{code}</code>\n"
+            f"📞 ስልክ፦ {data.phone}"
         )
         sent = send_telegram_message(data.telegram_id, msg)
-
     return {"ok": True, "sent_via_telegram": sent, "fallback_code": code}
 
-# 2. የነጋዴዎች KYC ምዝገባና ማጽደቂያ
+# --- 1. VENDORS (የነጋዴዎች KYC ቁጥጥር) ---
 @app.get("/vendors")
 def get_vendors():
     return vendors_db
 
 @app.post("/vendors")
 def register_vendor(vendor: VendorIn):
-    # የቴሌግራም ID ካለው በነባሩ ላይ ማዘመን ወይም አዲስ መፍጠር
+    # ተመሳሳይ username ካለ እንዲያድሰው (Update)፣ ከሌለ አዲስ እንዲፈጥር
+    for v in vendors_db:
+        if v["username"].lower() == (vendor.username or "").lower():
+            v["store_name"] = vendor.store_name
+            v["phone"] = vendor.phone
+            v["account"] = vendor.account
+            if vendor.id_front_image:
+                v["id_front_image"] = vendor.id_front_image
+            return v
+
     new_vendor = vendor.dict()
-    new_vendor["id"] = len(vendors_db) + 1
+    new_vendor["id"] = len(vendors_db) + 1 + random.randint(100, 999)
     new_vendor["status"] = "Pending"
     vendors_db.insert(0, new_vendor)
 
     if vendor.telegram_id:
         msg = (
-            f"✥ <b>የ KYC ምዝገባዎ ደርሶናል!</b>\n\n"
+            f"✥ <b>የ KYC ምዝገባ ጥያቄዎ ለአድሚን ደርሷል!</b>\n\n"
             f"🏪 <b>ሱቅ፦</b> {vendor.store_name}\n"
-            f"📞 <b>ስልክ፦</b> {vendor.phone}\n"
-            f"⏳ <b>ሁኔታ፦</b> በአድሚን በመገምገም ላይ (Pending Review)\n\n"
-            f"መታወቂያዎ ተረጋግጦ ሲጸድቅ ወዲያውኑ በዚህ ቦት መልእክት ይደርስዎታል።"
+            f"👤 <b>Username፦</b> @{vendor.username}\n"
+            f"⏳ <b>ሁኔታ፦</b> በመገምገም ላይ (Pending Review)"
         )
         send_telegram_message(vendor.telegram_id, msg)
 
@@ -136,15 +137,20 @@ def approve_vendor(vendor_id: int):
             v["status"] = "Approved ✅"
             if v.get("telegram_id"):
                 msg = (
-                    f"🎉 <b>እንኳን ደስ አለዎት! ሱቅዎ ጸድቋል!</b>\n\n"
-                    f"🏪 <b>የሱቅ ስም፦</b> {v['store_name']}\n"
-                    f"✅ <b>ሁኔታ፦</b> የተረጋገጠ ነጋዴ (Verified Vendor)\n\n"
-                    f"አሁን ወደ EOTC Market ሚኒ አፕ በመግባት እቃዎችዎን ወደ ገበያ መጫንና መሸጥ ይችላሉ!"
+                    f"🎉 <b>እንኳን ደስ አለዎት! ሱቅዎ በአድሚን ጸድቋል!</b>\n\n"
+                    f"🏪 <b>ሱቅ፦</b> {v['store_name']}\n"
+                    f"✅ አሁን ወደ ሚኒ አፑ በመግባት እቃዎችዎን መጫንና መሸጥ ይችላሉ!"
                 )
                 send_telegram_message(v.get("telegram_id"), msg)
     return {"ok": True}
 
-# 3. የእቃዎች መጫኛና ማሳያ
+@app.post("/vendors/{vendor_id}/reject")
+def reject_vendor(vendor_id: int):
+    global vendors_db
+    vendors_db = [v for v in vendors_db if v["id"] != vendor_id]
+    return {"ok": True}
+
+# --- 2. PRODUCTS (የሁሉም ነጋዴዎች እቃዎች ቁጥጥር) ---
 @app.get("/products")
 def get_products():
     return products_db
@@ -152,12 +158,18 @@ def get_products():
 @app.post("/products")
 def add_product(prod: ProductIn):
     new_prod = prod.dict()
-    new_prod["id"] = len(products_db) + 1
+    new_prod["id"] = len(products_db) + 1 + random.randint(1000, 9999)
     new_prod["badge"] = "አዲስ" if prod.condition == "አዲስ" else "ያገለገለ"
     products_db.insert(0, new_prod)
     return new_prod
 
-# 4. የክፍያ (Escrow) እና ትዕዛዝ መቆጣጠሪያ
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int):
+    global products_db
+    products_db = [p for p in products_db if p["id"] != product_id]
+    return {"ok": True}
+
+# --- 3. ORDERS (የገዢዎች ጥያቄና ግብይት ቁጥጥር) ---
 @app.get("/orders")
 def get_orders():
     return orders_db
@@ -165,18 +177,16 @@ def get_orders():
 @app.post("/orders")
 def create_order(order: OrderIn):
     new_order = order.dict()
-    new_order["id"] = len(orders_db) + 101
+    new_order["id"] = len(orders_db) + 101 + random.randint(10, 99)
     new_order["status"] = "በሂደት ላይ (Escrow Hold)"
     orders_db.insert(0, new_order)
 
     if order.buyer_telegram_id:
         msg = (
-            f"🛡️ <b>የክፍያ መረጃዎ በ Escrow ተይዟል!</b>\n\n"
+            f"🛡️ <b>የግዢ ጥያቄዎ እና ክፍያዎ በ Escrow ተይዟል!</b>\n\n"
             f"🛍️ <b>እቃ፦</b> {order.product_name}\n"
-            f"💰 <b>መጠን፦</b> {order.amount} ETB ({order.payment_method})\n"
-            f"🔢 <b>የክፍያ ቁጥር (Ref)፦</b> <code>{order.tx_ref}</code>\n"
-            f"⏳ <b>ሁኔታ፦</b> በሂደት ላይ (Waiting Admin Verification)\n\n"
-            f"ክፍያው በአድሚን እንደተረጋገጠ ወዲያውኑ መልእክት ይደርስዎታል።"
+            f"💰 <b>ዋጋ፦</b> {order.amount} ETB ({order.payment_method})\n"
+            f"🔢 <b>Ref፦</b> <code>{order.tx_ref}</code>"
         )
         send_telegram_message(order.buyer_telegram_id, msg)
 
@@ -188,11 +198,13 @@ def approve_order(order_id: int):
         if o["id"] == order_id:
             o["status"] = "ተረጋግጧል (Verified ✅)"
             if o.get("buyer_telegram_id"):
-                msg = (
-                    f"✅ <b>ክፍያዎ ተረጋግጧል!</b>\n\n"
-                    f"🛍️ <b>እቃ፦</b> {o['product_name']}\n"
-                    f"💰 <b>የተከፈለ፦</b> {o['amount']} ETB\n"
-                    f"📦 <b>ሁኔታ፦</b> ተረጋግጧል (ትዕዛዝዎ ለሻጩ ተላልፏል)"
-                )
+                msg = f"✅ ለ <b>{o['product_name']}</b> የፈጸሙት የ {o['amount']} ETB ክፍያ ተረጋግጧል!"
                 send_telegram_message(o.get("buyer_telegram_id"), msg)
+    return {"ok": True}
+
+@app.post("/orders/{order_id}/cancel")
+def cancel_order(order_id: int):
+    for o in orders_db:
+        if o["id"] == order_id:
+            o["status"] = "ውድቅ ተደርጓል (Cancelled ❌)"
     return {"ok": True}
