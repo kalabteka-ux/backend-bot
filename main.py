@@ -7,9 +7,6 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Float, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-# ==========================================
-# 1. DATABASE SETUP
-# ==========================================
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./eotc_market.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -21,9 +18,6 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# ==========================================
-# 2. DATABASE MODELS
-# ==========================================
 class VendorDB(Base):
     __tablename__ = "vendors"
     id = Column(Integer, primary_key=True, index=True)
@@ -73,9 +67,6 @@ class OrderDB(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ==========================================
-# 3. FASTAPI APP & CORS
-# ==========================================
 app = FastAPI(title="EOTC Market API")
 
 app.add_middleware(
@@ -93,9 +84,6 @@ def get_db():
     finally:
         db.close()
 
-# ==========================================
-# 4. SCHEMAS
-# ==========================================
 class VendorSchema(BaseModel):
     telegram_id: Optional[int] = None
     username: str
@@ -145,9 +133,6 @@ class OrderSchema(BaseModel):
     tx_ref: str
     status: Optional[str] = "Escrow Under Protection 🛡️"
 
-# ==========================================
-# 5. ENDPOINTS
-# ==========================================
 @app.get("/")
 def home():
     return {"message": "EOTC Market API is running successfully!"}
