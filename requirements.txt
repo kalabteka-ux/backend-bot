@@ -1,29 +1,8 @@
-# ==============================================================
-# FOLDER: backend-bot
-# FILE: requirements.txt
-# ==============================================================
 fastapi
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
-pydantic
-httpx
-cloudinary
-python-multipart
-
-# Database & ORM
-SQLAlchemy>=2.0.30,<3.0.0
-psycopg2-binary>=2.9.9,<3.0.0
-
-# Telegram Bot (Async aiogram 3.x)
-aiogram>=3.13.0,<4.0.0
-
-# HTTP & Crypto
-httpx>=0.27.0,<1.0.0
-python-dotenv>=1.0.1
-fastapi
-uvicorn[standard]
-sqlalchemy
+psycopg[binary]
 pydantic
 httpx
 cloudinary
