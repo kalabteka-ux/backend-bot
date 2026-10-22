@@ -314,3 +314,11 @@ def approve_order(order_id: int, db: Session = Depends(get_db)):
     order.status = "Released to Vendor ✅"
     db.commit()
     return {"status": "released"}
+    class ChatDB(Base):
+    __tablename__ = "chats"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, index=True)
+    sender = Column(String)  # የላኪው ስም ወይም ዩዘርኔም
+    receiver = Column(String) # የተቀባዩ ስም ወይም ዩዘርኔም
+    message = Column(Text)
+    timestamp = Column(String, default="")
