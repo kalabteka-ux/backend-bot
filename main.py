@@ -314,14 +314,21 @@ def approve_order(order_id: int, db: Session = Depends(get_db)):
     order.status = "Released to Vendor ✅"
     db.commit()
     return {"status": "released"}
-    class ChatDB(Base):
+    # 1. የቻት ዳታቤዝ ሞዴል (ከሌሎቹ Base ሞዴሎች ጋር ወይም መስመር 317 ላይ የሚገባ)
+class ChatDB(Base):
     __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, index=True)
-    sender = Column(String)  # የላኪው ስም ወይም ዩዘርኔም
-    receiver = Column(String) # የተቀባዩ ስም ወይም ዩዘርኔም
+    sender = Column(String)
+    receiver = Column(String)
     message = Column(Text)
     timestamp = Column(String, default="")
+
+# ዳታቤዙ አዲሱን የቻት ሰንጠረዥ እንዲፈጥር (ይህ መስመር ከሞዴሉ ስር መኖሩን ያረጋግጡ)
+Base.metadata.create_all(bind=engine)
+
+
+# 2. የቻት ዳታ መቀበያ እና ኤፒአይ (ከፋይሉ መጨረሻ ላይ የሚገባ)
 class ChatSchema(BaseModel):
     product_id: int
     sender: str
