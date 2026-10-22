@@ -322,3 +322,25 @@ def approve_order(order_id: int, db: Session = Depends(get_db)):
     receiver = Column(String) # የተቀባዩ ስም ወይም ዩዘርኔም
     message = Column(Text)
     timestamp = Column(String, default="")
+class ChatSchema(BaseModel):
+    product_id: int
+    sender: str
+    receiver: str
+    message: str
+
+@app.get("/chats/{product_id}")
+def get_chat_messages(product_id: int, db: Session = Depends(get_db)):
+    return db.query(ChatDB).filter(ChatDB.product_id == product_id).order_by(ChatDB.id.asc()).all()
+
+@app.post("/chats")
+def send_chat_message(c: ChatSchema, db: Session = Depends(get_db)):
+    new_msg = ChatDB(
+        product_id=c.product_id,
+        sender=c.sender,
+        receiver=c.receiver,
+        message=c.message
+    )
+    db.add(new_msg)
+    db.commit()
+    db.refresh(new_msg)
+    return new_msg
