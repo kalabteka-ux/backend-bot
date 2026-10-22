@@ -1,4 +1,7 @@
-import os
+from fastapi import FastAPI
+
+# ከዚህ በታች አፑን ማስጀመር (Instantiate) ይጀምራል
+app = FastAPI()
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
