@@ -1,11 +1,24 @@
 import os
 import random
-from typing import Optional
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+
+# 1. አፕሊኬሽኑን ማስጀመር
+app = FastAPI()
+
+# 2. CORS ማስተካከያውን ከዚህ በታች ማስገባት ይኖርብዎታል
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ሁሉንም የፊት-አንድ ሊንኮች እንድቀበል ያደርጋል
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 3. ቀጣይ የኢፒአይ (API) ማስተካከያዎችዎ እዚህ ይቀጥላሉ...
+@app.get("/")
+def read_root():
+    return {"message": "Hello EOTC Market"}
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./eotc_market.db")
 if DATABASE_URL.startswith("postgres://"):
